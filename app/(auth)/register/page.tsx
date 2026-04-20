@@ -31,87 +31,74 @@ export default function RegisterPage() {
   });
 
   const onSubmit = async (data: RegisterInput) => {
-    setLoading(true);
-    setError(null);
+    try {
+      setLoading(true);
+      setError(null);
 
-    const email = (data.email ?? "").trim().toLowerCase();
-    const password = data.password ?? "";
-    const username = (data.username ?? "").trim().toLowerCase();
-    const displayName = (data.display_name ?? "").trim();
+      const email = data.email.trim().toLowerCase();
+      const password = data.password;
+      const username = data.username.trim().toLowerCase();
+      const displayName = data.display_name.trim();
 
-    if (!email || !password || !username || !displayName) {
-      setError("Lütfen tüm alanları doldurun.");
-      setLoading(false);
-      return;
-    }
+      const supabase = createClient();
 
-    const supabase = createClient();
-
-    // Sign up
-    const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          username,
-          display_name: displayName,
+      // Attempt signup
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            username,
+            display_name: displayName,
+          },
         },
-      },
-    });
+      });
 
-    if (authError) {
-      setError(mapAuthErrorToMessage(authError));
+      if (authError) {
+        setError(mapAuthErrorToMessage(authError));
+        setLoading(false);
+        return;
+      }
+
+      if (!authData.user) {
+        setError("Kayıt tamamlanamadı. Lütfen tekrar deneyin.");
+        setLoading(false);
+        return;
+      }
+
+      // Check if email confirmation is required
+      if (!authData.session && authData.user.identities && authData.user.identities.length > 0) {
+        setError(
+          "Kayıt başarılı! E-posta adresinize gönderilen onay linkine tıklayıp giriş yapabilirsiniz."
+        );
+        setLoading(false);
+        return;
+      }
+
+      // If we have a session, user is logged in
+      if (authData.session) {
+        // Wait for profile to be created by trigger
+        const profileReady = await ensureProfileExists(supabase, authData.user, 10);
+        
+        if (!profileReady) {
+          setError("Hesap oluşturuldu ama profil hazırlanırken sorun oluştu. Lütfen giriş sayfasından devam edin.");
+          setLoading(false);
+          return;
+        }
+
+        router.push("/chat");
+        router.refresh();
+        return;
+      }
+
+      // No session and no identities means email already exists
+      setError("Bu e-posta zaten kayıtlı. Giriş sayfasından devam edin.");
       setLoading(false);
-      return;
-    }
-
-    if (!authData.user) {
-      setError("Kayıt yanıtında kullanıcı bilgisi alınamadı. Lütfen tekrar deneyin.");
+    } catch (err) {
+      console.error("Register error:", err);
+      setError("Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.");
       setLoading(false);
-      return;
     }
-
-    if ((authData.user.identities?.length ?? 0) === 0) {
-      setError(
-        "Bu e-posta zaten kayıtlı olabilir. E-posta onayı bekleniyorsa gelen kutunuzu kontrol edin veya giriş ekranından devam edin."
-      );
-      setLoading(false);
-      return;
-    }
-
-    const profileReady = await ensureProfileExists(supabase, authData.user);
-
-    if (!profileReady) {
-      setError("Hesap oluşturuldu ama profil hazırlanamadı. Lütfen birkaç saniye sonra tekrar deneyin.");
-      setLoading(false);
-      return;
-    }
-
-    if (authData.session) {
-      router.push("/chat");
-      router.refresh();
-      return;
-    }
-
-    const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (loginError) {
-      setError(mapAuthErrorToMessage(loginError));
-      setLoading(false);
-      return;
-    }
-
-    if (!loginData.session || !loginData.user) {
-      setError("Kayıt başarılı fakat otomatik giriş yapılamadı. Lütfen giriş ekranından devam edin.");
-      setLoading(false);
-      return;
-    }
-
-    router.push("/chat");
-    router.refresh();
   };
 
   return (

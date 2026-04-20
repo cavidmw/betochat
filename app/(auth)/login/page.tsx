@@ -29,46 +29,47 @@ export default function LoginPage() {
   });
 
   const onSubmit = async (data: LoginInput) => {
-    setLoading(true);
-    setError(null);
+    try {
+      setLoading(true);
+      setError(null);
 
-    const email = (data.email ?? "").trim().toLowerCase();
-    const password = data.password ?? "";
+      const email = data.email.trim().toLowerCase();
+      const password = data.password;
 
-    if (!email || !password) {
-      setError("Lütfen e-posta ve şifre alanlarını doldurun.");
+      const supabase = createClient();
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (authError) {
+        setError(mapAuthErrorToMessage(authError));
+        setLoading(false);
+        return;
+      }
+
+      if (!authData.session || !authData.user) {
+        setError("Giriş tamamlanamadı. Lütfen tekrar deneyin.");
+        setLoading(false);
+        return;
+      }
+
+      // Wait for profile to be ready
+      const profileReady = await ensureProfileExists(supabase, authData.user, 10);
+
+      if (!profileReady) {
+        setError("Profil bilgileri henüz hazır değil. Lütfen birkaç saniye sonra tekrar deneyin.");
+        setLoading(false);
+        return;
+      }
+
+      router.push("/chat");
+      router.refresh();
+    } catch (err) {
+      console.error("Login error:", err);
+      setError("Beklenmeyen bir hata oluştu. Lütfen tekrar deneyin.");
       setLoading(false);
-      return;
     }
-
-    const supabase = createClient();
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (authError) {
-      setError(mapAuthErrorToMessage(authError));
-      setLoading(false);
-      return;
-    }
-
-    if (!authData.session || !authData.user) {
-      setError("Giriş tamamlanamadı. Lütfen tekrar deneyin.");
-      setLoading(false);
-      return;
-    }
-
-    const profileReady = await ensureProfileExists(supabase, authData.user);
-
-    if (!profileReady) {
-      setError("Giriş başarılı fakat profil bilgileri henüz hazır değil. Lütfen birkaç saniye sonra tekrar deneyin.");
-      setLoading(false);
-      return;
-    }
-
-    router.push("/chat");
-    router.refresh();
   };
 
   return (

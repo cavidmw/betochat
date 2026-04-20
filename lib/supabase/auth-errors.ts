@@ -1,44 +1,54 @@
 import type { AuthError, SupabaseClient, User } from "@supabase/supabase-js";
 
 export function mapAuthErrorToMessage(error: AuthError | null): string {
-  const rawMessage = (error?.message ?? "").toLowerCase();
-
   if (!error) {
-    return "Bilinmeyen bir kimlik doğrulama hatası oluştu.";
+    return "Bilinmeyen bir hata oluştu.";
   }
 
-  if (rawMessage.includes("email not confirmed")) {
-    return "Hesabınız oluşturuldu fakat e-posta onayı bekleniyor. Gelen kutunuzu kontrol edip onayladıktan sonra giriş yapın.";
+  const msg = (error.message ?? "").toLowerCase();
+
+  // Rate limit
+  if (msg.includes("email rate limit exceeded") || msg.includes("rate limit")) {
+    return "Çok fazla deneme yaptınız. Lütfen birkaç dakika bekleyip tekrar deneyin.";
   }
 
-  if (rawMessage.includes("profiles_username_key")) {
-    return "Bu kullanıcı adı zaten alınmış.";
+  // Email confirmation required
+  if (msg.includes("email not confirmed")) {
+    return "E-posta adresinizi onaylamanız gerekiyor. Gelen kutunuzu kontrol edin.";
   }
 
-  if (
-    rawMessage.includes("duplicate key value violates unique constraint") &&
-    rawMessage.includes("username")
-  ) {
-    return "Bu kullanıcı adı zaten alınmış.";
-  }
-
-  if (rawMessage.includes("invalid login credentials")) {
+  // Invalid credentials
+  if (msg.includes("invalid login credentials") || msg.includes("invalid email or password")) {
     return "E-posta veya şifre hatalı.";
   }
 
-  if (rawMessage.includes("user already registered")) {
+  // Email already registered
+  if (msg.includes("user already registered") || msg.includes("already been registered")) {
     return "Bu e-posta adresi zaten kayıtlı.";
   }
 
-  if (rawMessage.includes("password should be at least")) {
+  // Username duplicate (from DB constraint)
+  if (msg.includes("profiles_username_key") || (msg.includes("duplicate") && msg.includes("username"))) {
+    return "Bu kullanıcı adı zaten alınmış.";
+  }
+
+  // Password validation
+  if (msg.includes("password") && (msg.includes("at least") || msg.includes("too short"))) {
     return "Şifre en az 6 karakter olmalı.";
   }
 
-  if (rawMessage.includes("signup is disabled")) {
+  // Signup disabled
+  if (msg.includes("signup") && msg.includes("disabled")) {
     return "Kayıt işlemi şu anda kapalı.";
   }
 
-  return error.message || "Kimlik doğrulama sırasında bir hata oluştu.";
+  // Network/timeout
+  if (msg.includes("network") || msg.includes("timeout") || msg.includes("fetch")) {
+    return "Bağlantı hatası. İnternet bağlantınızı kontrol edip tekrar deneyin.";
+  }
+
+  // Fallback
+  return error.message || "Bir hata oluştu. Lütfen tekrar deneyin.";
 }
 
 export async function ensureProfileExists(
