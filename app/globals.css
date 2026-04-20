@@ -1,0 +1,102 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+  --radius-bubble: 20px;
+  --blur-glass: 24px;
+}
+
+html,
+body {
+  height: 100%;
+  background: #0a0b10;
+  color: #e7e8ee;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+    "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  overscroll-behavior-y: none;
+}
+
+body {
+  background:
+    radial-gradient(1200px 700px at 20% -10%, rgba(124, 140, 255, 0.08), transparent 60%),
+    radial-gradient(900px 600px at 100% 0%, rgba(180, 120, 255, 0.06), transparent 60%),
+    #0a0b10;
+  min-height: 100dvh;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/* Glass surface */
+.glass {
+  background: rgba(20, 22, 32, 0.55);
+  backdrop-filter: blur(var(--blur-glass)) saturate(140%);
+  -webkit-backdrop-filter: blur(var(--blur-glass)) saturate(140%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.glass-strong {
+  background: rgba(26, 28, 40, 0.72);
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Scrollbar — minimalist */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.12);
+  background-clip: padding-box;
+}
+
+/* Focus ring */
+:focus-visible {
+  outline: 2px solid rgba(124, 140, 255, 0.6);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Starfield canvas */
+.starfield {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+/* Subtle safe area for iOS */
+.safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
