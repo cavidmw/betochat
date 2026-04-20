@@ -47,25 +47,6 @@ export default function RegisterPage() {
 
     const supabase = createClient();
 
-    // Check username availability
-    const { data: existingUser, error: existingUserError } = await supabase
-      .from("profiles")
-      .select("id")
-      .eq("username", username)
-      .maybeSingle();
-
-    if (existingUserError) {
-      setError("Kullanıcı adı kontrol edilirken bir hata oluştu. Lütfen tekrar deneyin.");
-      setLoading(false);
-      return;
-    }
-
-    if (existingUser) {
-      setError("Bu kullanıcı adı zaten alınmış");
-      setLoading(false);
-      return;
-    }
-
     // Sign up
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,

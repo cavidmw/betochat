@@ -2,7 +2,6 @@ import type { AuthError, SupabaseClient, User } from "@supabase/supabase-js";
 
 export function mapAuthErrorToMessage(error: AuthError | null): string {
   const rawMessage = (error?.message ?? "").toLowerCase();
-  const status = error?.status;
 
   if (!error) {
     return "Bilinmeyen bir kimlik doğrulama hatası oluştu.";
@@ -12,7 +11,18 @@ export function mapAuthErrorToMessage(error: AuthError | null): string {
     return "Hesabınız oluşturuldu fakat e-posta onayı bekleniyor. Gelen kutunuzu kontrol edip onayladıktan sonra giriş yapın.";
   }
 
-  if (rawMessage.includes("invalid login credentials") || status === 400) {
+  if (rawMessage.includes("profiles_username_key")) {
+    return "Bu kullanıcı adı zaten alınmış.";
+  }
+
+  if (
+    rawMessage.includes("duplicate key value violates unique constraint") &&
+    rawMessage.includes("username")
+  ) {
+    return "Bu kullanıcı adı zaten alınmış.";
+  }
+
+  if (rawMessage.includes("invalid login credentials")) {
     return "E-posta veya şifre hatalı.";
   }
 
