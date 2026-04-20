@@ -113,7 +113,7 @@ git push -u origin main
 ### Adım 3.1: Vercel'e Bağlanma
 
 1. https://vercel.com adresine gidin ve giriş yapın
-2. **Add New...** → **Project** butonuna tıklayın
+2. **Add New...** → **Project** butonuna tıklayın 
 3. **Import Git Repository** bölümünde GitHub hesabınızı bağlayın
 4. `betochat` reposunu bulun ve **Import** butonuna tıklayın
 

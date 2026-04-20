@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createClient } from "@/lib/supabase/client";
+import { ensureProfileExists, mapAuthErrorToMessage } from "@/lib/supabase/auth-errors";
 import { registerSchema, type RegisterInput } from "@/lib/validation";
 import { Button, Input } from "@/components/ui";
 import { MessageCircle } from "lucide-react";
@@ -21,20 +22,43 @@ export default function RegisterPage() {
     formState: { errors },
   } = useForm<RegisterInput>({
     resolver: zodResolver(registerSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+      username: "",
+      display_name: "",
+    },
   });
 
   const onSubmit = async (data: RegisterInput) => {
     setLoading(true);
     setError(null);
 
+    const email = (data.email ?? "").trim().toLowerCase();
+    const password = data.password ?? "";
+    const username = (data.username ?? "").trim().toLowerCase();
+    const displayName = (data.display_name ?? "").trim();
+
+    if (!email || !password || !username || !displayName) {
+      setError("Lütfen tüm alanları doldurun.");
+      setLoading(false);
+      return;
+    }
+
     const supabase = createClient();
 
     // Check username availability
-    const { data: existingUser } = await supabase
+    const { data: existingUser, error: existingUserError } = await supabase
       .from("profiles")
       .select("id")
-      .eq("username", data.username.toLowerCase())
-      .single();
+      .eq("username", username)
+      .maybeSingle();
+
+    if (existingUserError) {
+      setError("Kullanıcı adı kontrol edilirken bir hata oluştu. Lütfen tekrar deneyin.");
+      setLoading(false);
+      return;
+    }
 
     if (existingUser) {
       setError("Bu kullanıcı adı zaten alınmış");
@@ -44,30 +68,69 @@ export default function RegisterPage() {
 
     // Sign up
     const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: data.email,
-      password: data.password,
+      email,
+      password,
       options: {
         data: {
-          username: data.username.toLowerCase(),
-          display_name: data.display_name,
+          username,
+          display_name: displayName,
         },
       },
     });
 
     if (authError) {
-      if (authError.message.includes("already registered")) {
-        setError("Bu e-posta adresi zaten kayıtlı");
-      } else {
-        setError("Kayıt sırasında bir hata oluştu");
-      }
+      setError(mapAuthErrorToMessage(authError));
       setLoading(false);
       return;
     }
 
-    if (authData.user) {
+    if (!authData.user) {
+      setError("Kayıt yanıtında kullanıcı bilgisi alınamadı. Lütfen tekrar deneyin.");
+      setLoading(false);
+      return;
+    }
+
+    if ((authData.user.identities?.length ?? 0) === 0) {
+      setError(
+        "Bu e-posta zaten kayıtlı olabilir. E-posta onayı bekleniyorsa gelen kutunuzu kontrol edin veya giriş ekranından devam edin."
+      );
+      setLoading(false);
+      return;
+    }
+
+    const profileReady = await ensureProfileExists(supabase, authData.user);
+
+    if (!profileReady) {
+      setError("Hesap oluşturuldu ama profil hazırlanamadı. Lütfen birkaç saniye sonra tekrar deneyin.");
+      setLoading(false);
+      return;
+    }
+
+    if (authData.session) {
       router.push("/chat");
       router.refresh();
+      return;
     }
+
+    const { data: loginData, error: loginError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (loginError) {
+      setError(mapAuthErrorToMessage(loginError));
+      setLoading(false);
+      return;
+    }
+
+    if (!loginData.session || !loginData.user) {
+      setError("Kayıt başarılı fakat otomatik giriş yapılamadı. Lütfen giriş ekranından devam edin.");
+      setLoading(false);
+      return;
+    }
+
+    router.push("/chat");
+    router.refresh();
   };
 
   return (

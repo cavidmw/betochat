@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { createClient } from "@/lib/supabase/client";
+import { ensureProfileExists, mapAuthErrorToMessage } from "@/lib/supabase/auth-errors";
 import { loginSchema, type LoginInput } from "@/lib/validation";
 import { Button, Input } from "@/components/ui";
 import { MessageCircle } from "lucide-react";
@@ -21,20 +22,47 @@ export default function LoginPage() {
     formState: { errors },
   } = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
   });
 
   const onSubmit = async (data: LoginInput) => {
     setLoading(true);
     setError(null);
 
+    const email = (data.email ?? "").trim().toLowerCase();
+    const password = data.password ?? "";
+
+    if (!email || !password) {
+      setError("Lütfen e-posta ve şifre alanlarını doldurun.");
+      setLoading(false);
+      return;
+    }
+
     const supabase = createClient();
-    const { error: authError } = await supabase.auth.signInWithPassword({
-      email: data.email,
-      password: data.password,
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
     });
 
     if (authError) {
-      setError("E-posta veya şifre hatalı");
+      setError(mapAuthErrorToMessage(authError));
+      setLoading(false);
+      return;
+    }
+
+    if (!authData.session || !authData.user) {
+      setError("Giriş tamamlanamadı. Lütfen tekrar deneyin.");
+      setLoading(false);
+      return;
+    }
+
+    const profileReady = await ensureProfileExists(supabase, authData.user);
+
+    if (!profileReady) {
+      setError("Giriş başarılı fakat profil bilgileri henüz hazır değil. Lütfen birkaç saniye sonra tekrar deneyin.");
       setLoading(false);
       return;
     }
